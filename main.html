@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafeRail.ai — Edge AI Data Leak Protection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060810;
+    --bg2: #0b0f1c;
+    --panel: #0f1424;
+    --border: rgba(255,255,255,0.07);
+    --accent: #00f5a0;
+    --accent2: #00c8ff;
+    --danger: #ff3d6b;
+    --warn: #ffb800;
+    --text: #e8eaf2;
+    --muted: #6b7280;
+    --glow: rgba(0,245,160,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* CUSTOM CURSOR */
+  .cursor {
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.1s ease, background 0.2s;
+    mix-blend-mode: screen;
+  }
+  .cursor-ring {
+    width: 36px; height: 36px;
+    border: 1px solid rgba(0,245,160,0.4);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    z-index: 9998;
+    transition: transform 0.15s ease, width 0.2s, height 0.2s, opacity 0.2s;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* GRID BACKGROUND */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,160,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 500;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 48px;
+    background: rgba(6,8,16,0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    border: 2px solid var(--bg);
+    border-radius: 3px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .nav-links {
+    display: flex; align-items: center; gap: 36px;
+    list-style: none;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+
+  .nav-links a {
+    color: inherit; text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .btn-ghost {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: none;
+    padding: 8px 16px;
+    transition: color 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-ghost:hover { color: var(--text); }
+
+  .btn-primary {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    cursor: none;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(0,245,160,0.4);
+  }
+  .btn-primary:hover::before { opacity: 1; }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 120px 48px 80px;
+    position: relative;
+    text-align: center;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,245,160,0.08);
+    border: 1px solid rgba(0,245,160,0.2);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 40px;
+    animation: fadeUp 0.8s ease both;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 1;
+    letter-spacing: -3px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.8s ease 0.1s both;
+  }
+
+  .hero h1 em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+    animation: fadeUp 0.8s ease 0.2s both;
+  }
+
+  .hero-actions {
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap; justify-content: center;
+    animation: fadeUp 0.8s ease 0.3s both;
+  }
+
+  .btn-large {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 14px 28px;
+    cursor: none;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-large:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0,245,160,0.5);
+  }
+
+  .btn-outline {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 28px;
+    cursor: none;
+    letter-spacing: 0.3px;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-outline:hover {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.04);
+  }
+
+  /* GLOW ORBS */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  .orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,245,160,0.08) 0%, transparent 70%);
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,200,255,0.06) 0%, transparent 70%);
+    bottom: 0; right: -100px;
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: flex; align-items: center; gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 80px;
+    animation: fadeUp 0.8s ease 0.4s both;
+    background: var(--panel);
+  }
+
+  .stat-item {
+    padding: 24px 48px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    flex: 1;
+  }
+  .stat-item:last-child { border-right: none; }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent);
+    display: block;
+    letter-spacing: -1px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+    display: block;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* DEMO SECTION */
+  .demo-section {
+    padding: 120px 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .section-label::before {
+    content: '';
+    width: 40px; height: 1px;
+    background: var(--accent);
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 4vw, 56px);
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.05;
+    margin-bottom: 20px;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+    max-width: 500px;
+    margin-bottom: 60px;
+  }
+
+  .demo-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .demo-panel {
+    background: var(--panel);
+    padding: 32px;
+  }
+
+  .demo-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .demo-panel-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  .status-live {
+    background: rgba(0,245,160,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,245,160,0.2);
+  }
+
+  .status-alert {
+    background: rgba(255,61,107,0.1);
+    color: var(--danger);
+    border: 1px solid rgba(255,61,107,0.2);
+    animation: alertPulse 1.5s infinite;
+  }
+
+  @keyframes alertPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* LIVE FEED */
+  .log-feed {
+    display: flex; flex-direction: column; gap: 8px;
+    height: 280px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .log-feed::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, var(--panel));
+  }
+
+  .log-line {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 2px solid transparent;
+    animation: slideIn 0.3s ease both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-ok { border-left-color: var(--accent); background: rgba(0,245,160,0.03); }
+  .log-warn { border-left-color: var(--warn); background: rgba(255,184,0,0.03); }
+  .log-danger { border-left-color: var(--danger); background: rgba(255,61,107,0.06); }
+
+  .log-time { color: var(--muted); flex-shrink: 0; font-size: 10px; margin-top: 1px; }
+  .log-type { font-weight: 500; flex-shrink: 0; }
+  .log-ok .log-type { color: var(--accent); }
+  .log-warn .log-type { color: var(--warn); }
+  .log-danger .log-type { color: var(--danger); }
+  .log-msg { color: var(--muted); }
+
+  /* THREAT MAP */
+  .threat-vis {
+    height: 280px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+  }
+
+  .threat-grid {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 1px;
+    padding: 8px;
+  }
+
+  .threat-cell {
+    border-radius: 2px;
+    background: rgba(255,255,255,0.02);
+    transition: background 0.3s, transform 0.2s;
+  }
+
+  .threat-cell.hot { background: rgba(255,61,107,0.6); transform: scale(1.2); }
+  .threat-cell.warm { background: rgba(255,184,0,0.3); }
+  .threat-cell.cool { background: rgba(0,245,160,0.15); }
+
+  .threat-overlay {
+    position: absolute;
+    top: 12px; left: 12px;
+    background: rgba(255,61,107,0.1);
+    border: 1px solid rgba(255,61,107,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px;
+  }
+
+  .threat-count {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--danger);
+  }
+
+  /* CALCULATOR SECTION */
+  .calc-section {
+    padding: 120px 48px;
+    position: relative;
+    z-index: 1;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .calc-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    max-width: 1100px;
+    margin: 0 auto;
+    align-items: center;
+  }
+
+  .calc-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+  }
+
+  .calc-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .calc-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+
+  .calc-row {
+    margin-bottom: 24px;
+  }
+
+  .calc-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    display: flex; justify-content: space-between;
+  }
+
+  .calc-val {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: none;
+    box-shadow: 0 0 10px rgba(0,245,160,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.3);
+    box-shadow: 0 0 20px rgba(0,245,160,0.6);
+  }
+
+  .calc-result {
+    margin-top: 32px;
+    padding: 24px;
+    background: rgba(255,61,107,0.06);
+    border: 1px solid rgba(255,61,107,0.15);
+    border-radius: 12px;
+  }
+
+  .calc-result-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .calc-result-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--danger);
+    letter-spacing: -2px;
+  }
+
+  .calc-result-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* FEATURES */
+  .features-section {
+    padding: 120px 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-top: 64px;
+  }
+
+  .feature-card {
+    background: var(--panel);
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .feature-card:hover { background: #131829; }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .feature-card:hover::before { opacity: 0.6; }
+
+  .feature-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px;
+    font-size: 20px;
+    background: rgba(0,0,0,0.3);
+  }
+
+  .feature-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.3px;
+  }
+
+  .feature-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* PRICING */
+  .pricing-section {
+    padding: 120px 48px;
+    position: relative;
+    z-index: 1;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 64px;
+    max-width: 960px;
+    margin-left: auto; margin-right: auto;
+  }
+
+  .price-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 32px;
+    position: relative;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .price-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(0,245,160,0.2);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  }
+
+  .price-card.featured {
+    border-color: rgba(0,245,160,0.3);
+    background: linear-gradient(135deg, rgba(0,245,160,0.05) 0%, var(--panel) 100%);
+  }
+
+  .featured-tag {
+    position: absolute;
+    top: -12px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+
+  .price-plan {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .price-amount {
+    font-family: 'Syne', sans-serif;
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 4px;
+  }
+
+  .price-amount sup {
+    font-size: 24px;
+    vertical-align: top;
+    margin-top: 10px;
+    display: inline-block;
+    letter-spacing: 0;
+  }
+
+  .price-per {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .price-features {
+    list-style: none;
+    display: flex; flex-direction: column; gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .price-features li {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .price-features li::before {
+    content: '→';
+    color: var(--accent);
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .btn-plan {
+    width: 100%;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: none;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    font-weight: 500;
+    text-align: center;
+    display: block;
+    text-decoration: none;
+  }
+
+  .btn-plan-solid {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+  }
+  .btn-plan-solid:hover { box-shadow: 0 0 20px rgba(0,245,160,0.4); }
+
+  .btn-plan-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-plan-ghost:hover { border-color: rgba(255,255,255,0.2); }
+
+  /* WHITEPAPER */
+  .whitepaper-section {
+    padding: 120px 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .whitepaper-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 64px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 80px;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .whitepaper-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at top left, rgba(0,200,255,0.05) 0%, transparent 60%);
+  }
+
+  .wp-tag {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .wp-tag::before {
+    content: '';
+    width: 20px; height: 1px;
+    background: var(--accent2);
+  }
+
+  .wp-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(24px, 3vw, 40px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .wp-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .wp-form {
+    display: flex; gap: 12px;
+  }
+
+  .wp-input {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .wp-input:focus { border-color: rgba(0,200,255,0.4); }
+  .wp-input::placeholder { color: var(--muted); }
+
+  .wp-book {
+    width: 180px; height: 240px;
+    background: linear-gradient(135deg, #0f1f3d, #1a2f55);
+    border-radius: 4px 12px 12px 4px;
+    position: relative;
+    box-shadow: -8px 8px 24px rgba(0,0,0,0.5), inset -2px 0 0 rgba(0,200,255,0.1);
+    flex-shrink: 0;
+  }
+
+  .wp-book::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    border-radius: 4px 12px 12px 4px;
+    background: linear-gradient(to right, rgba(0,0,0,0.2), transparent 20%, transparent 80%, rgba(0,0,0,0.1));
+  }
+
+  .wp-book-content {
+    position: absolute; inset: 20px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .wp-book-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .wp-book-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    line-height: 1.3;
+  }
+
+  .wp-book-sub {
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.5px;
+  }
+
+  .wp-book-bar {
+    width: 40px; height: 3px;
+    background: var(--accent2);
+    border-radius: 2px;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 60px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+  }
+
+  .footer-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+
+  .footer-logo span { color: var(--accent); }
+
+  .footer-links {
+    display: flex; gap: 32px;
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .footer-links a {
+    color: inherit; text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--text); }
+
+  .footer-right {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(8px);
+    z-index: 800;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px;
+    max-width: 480px;
+    width: 90%;
+    transform: translateY(24px);
+    transition: transform 0.3s;
+    position: relative;
+  }
+
+  .modal-overlay.open .modal {
+    transform: translateY(0);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: none; border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: none;
+    padding: 8px;
+    transition: color 0.2s;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+  }
+
+  .modal-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+
+  .form-row { margin-bottom: 16px; }
+
+  .form-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .form-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus { border-color: rgba(0,245,160,0.4); }
+  .form-input::placeholder { color: var(--muted); }
+
+  .form-submit {
+    width: 100%;
+    margin-top: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    cursor: none;
+    font-weight: 500;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .form-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(0,245,160,0.4);
+  }
+
+  .success-msg {
+    display: none;
+    text-align: center;
+    padding: 40px 0;
+  }
+
+  .success-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .success-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .success-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(0,245,160,0.2); border-radius: 2px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 16px 24px; }
+    .nav-links { display: none; }
+    .hero { padding: 100px 24px 60px; }
+    .stats-bar { flex-direction: column; }
+    .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+    .demo-container { grid-template-columns: 1fr; }
+    .calc-wrapper { grid-template-columns: 1fr; gap: 40px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .whitepaper-card { grid-template-columns: 1fr; padding: 40px 24px; }
+    .wp-book { display: none; }
+    footer { flex-direction: column; gap: 24px; text-align: center; }
+    .footer-links { flex-wrap: wrap; justify-content: center; }
+    .section-title { letter-spacing: -1px; }
+    .hero h1 { letter-spacing: -1.5px; }
+    .demo-section, .calc-section, .features-section, .pricing-section, .whitepaper-section { padding: 80px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalForm">
+      <div class="modal-title">Start Free Trial</div>
+      <div class="modal-sub">14 days free. No credit card required. Deploy in under 5 minutes.</div>
+      <div class="form-row">
+        <label class="form-label">Work email</label>
+        <input type="email" class="form-input" placeholder="you@company.com">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Company name</label>
+        <input type="text" class="form-input" placeholder="Acme Corp">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Team size</label>
+        <input type="text" class="form-input" placeholder="1–10 / 11–50 / 51–200 / 200+">
+      </div>
+      <button class="form-submit" id="formSubmit">Get Instant Access →</button>
+    </div>
+    <div class="success-msg" id="successMsg">
+      <div class="success-icon">✓</div>
+      <div class="success-title">You're in the queue</div>
+      <div class="success-sub">We'll send your access credentials within 2 minutes. Check your inbox.</div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    Safe<span>Rail</span>.ai
+  </div>
+  <ul class="nav-links">
+    <li><a href="#demo">Live Demo</a></li>
+    <li><a href="#calculator">Risk Score</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#whitepaper">Research</a></li>
+  </ul>
+  <div class="nav-cta">
+    <button class="btn-ghost" onclick="openModal()">Sign in</button>
+    <button class="btn-primary" onclick="openModal()">Start free trial</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="hero-badge">
+    <div class="badge-dot"></div>
+    Edge AI · Real-time Protection · SOC 2 Compliant
+  </div>
+  <h1>Stop Data Leaks<br>Before They <em>Escape</em></h1>
+  <p class="hero-sub">SafeRail deploys an AI model directly on your browser edge — intercepting sensitive data in real-time before it ever leaves the device. Zero latency. Zero trust.</p>
+  <div class="hero-actions">
+    <button class="btn-large" onclick="openModal()">
+      ⚡ Start Free Trial
+    </button>
+    <button class="btn-outline" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">
+      ▶ Watch Live Demo
+    </button>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-num" data-target="99.97">0</span>
+      <span class="stat-label">Detection Rate %</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" data-target="0.8" data-suffix="ms">0</span>
+      <span class="stat-label">Avg. Response Time</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" data-target="2400" data-prefix="" data-suffix="K+">0</span>
+      <span class="stat-label">Threats Blocked</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" data-target="180" data-suffix="+">0</span>
+      <span class="stat-label">Enterprise Clients</span>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO SECTION -->
+<section class="demo-section" id="demo">
+  <div class="section-label">Live System Feed</div>
+  <div class="section-title">Watch SafeRail<br>Catch Leaks Live</div>
+  <p class="section-sub">This is a real-time simulation of SafeRail's edge AI engine scanning network traffic and blocking data exfiltration attempts.</p>
+  <div class="demo-container">
+    <div class="demo-panel">
+      <div class="demo-panel-header">
+        <div class="demo-panel-title">Network Activity Log</div>
+        <div class="status-badge status-live">● LIVE</div>
+      </div>
+      <div class="log-feed" id="logFeed"></div>
+    </div>
+    <div class="demo-panel">
+      <div class="demo-panel-header">
+        <div class="demo-panel-title">Threat Heatmap</div>
+        <div class="status-badge status-alert" id="alertBadge">⚠ 3 ACTIVE</div>
+      </div>
+      <div class="threat-vis">
+        <div class="threat-grid" id="threatGrid"></div>
+        <div class="threat-overlay">
+          <div>
+            <div class="threat-count" id="threatCount">3</div>
+            <div style="font-size:10px;color:var(--muted)">active threats</div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-left:8px;">blocked in last 60s</div>
+        </div>
+      </div>
+      <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="background:rgba(0,245,160,0.05);border:1px solid rgba(0,245,160,0.1);border-radius:8px;padding:14px;">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px;">PACKETS SCANNED</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--accent);" id="packetCount">0</div>
+        </div>
+        <div style="background:rgba(255,61,107,0.05);border:1px solid rgba(255,61,107,0.1);border-radius:8px;padding:14px;">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px;">BLOCKED TODAY</div>
+          <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--danger);" id="blockedCount">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CALCULATOR SECTION -->
+<section class="calc-section" id="calculator">
+  <div class="calc-wrapper">
+    <div>
+      <div class="section-label">Compliance Risk Calculator</div>
+      <div class="section-title">What's Your<br>Data Breach<br>Exposure?</div>
+      <p class="section-sub">Estimate your annual risk exposure in under 30 seconds. Adjust the sliders to match your organization profile.</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6;">Based on IBM Cost of a Data Breach Report 2024 and Ponemon Institute research. Results are estimates for planning purposes.</p>
+    </div>
+    <div class="calc-card">
+      <div class="calc-title">Risk Exposure Calculator</div>
+      <div class="calc-desc">Slide to configure your org profile and see projected annual breach cost</div>
+      <div class="calc-row">
+        <div class="calc-label">
+          <span>Number of employees</span>
+          <span class="calc-val" id="empVal">500</span>
+        </div>
+        <input type="range" id="empRange" min="10" max="10000" value="500" step="10">
+      </div>
+      <div class="calc-row">
+        <div class="calc-label">
+          <span>Sensitive records stored</span>
+          <span class="calc-val" id="recVal">50,000</span>
+        </div>
+        <input type="range" id="recRange" min="1000" max="5000000" value="50000" step="1000">
+      </div>
+      <div class="calc-row">
+        <div class="calc-label">
+          <span>Industry risk multiplier</span>
+          <span class="calc-val" id="indVal">Finance (2.1×)</span>
+        </div>
+        <input type="range" id="indRange" min="1" max="5" value="3" step="1">
+      </div>
+      <div class="calc-row">
+        <div class="calc-label">
+          <span>Current security maturity</span>
+          <span class="calc-val" id="matVal">Medium</span>
+        </div>
+        <input type="range" id="matRange" min="1" max="3" value="2" step="1">
+      </div>
+      <div class="calc-result">
+        <div class="calc-result-label">Estimated Annual Breach Risk</div>
+        <div class="calc-result-val" id="calcResult">$0</div>
+        <div class="calc-result-sub">SafeRail reduces this by up to <strong style="color:var(--accent)">73%</strong> — saving you <span id="calcSaving" style="color:var(--accent)">$0</span>/year</div>
+      </div>
+      <button class="btn-large" style="margin-top:20px;width:100%;justify-content:center;" onclick="openModal()">
+        Get Full Risk Report →
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section" id="features">
+  <div style="max-width:600px;">
+    <div class="section-label">Platform Capabilities</div>
+    <div class="section-title">Built for the<br>Security-First Enterprise</div>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔬</div>
+      <div class="feature-title">On-Device AI Inference</div>
+      <div class="feature-desc">Our WASM-compiled neural model runs entirely at the browser edge. Zero data ever reaches our servers — you retain 100% data sovereignty.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Sub-Millisecond Detection</div>
+      <div class="feature-desc">0.8ms average detection latency means SafeRail intercepts exfiltration attempts before the TCP handshake completes. Invisible to end users.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🕸️</div>
+      <div class="feature-title">Chrome Extension + API</div>
+      <div class="feature-desc">Deploy as a Chrome extension for immediate coverage, or embed via our lightweight SDK into any web application or Electron app in minutes.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <div class="feature-title">GDPR / HIPAA / SOC 2</div>
+      <div class="feature-desc">Pre-built compliance policy templates for GDPR, HIPAA, PCI-DSS, and SOC 2. Audit-ready logs generated automatically for every interception.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <div class="feature-title">Contextual AI Classification</div>
+      <div class="feature-desc">Beyond regex — our LLM understands semantic context, catching obfuscated PII, encoded credentials, and novel data patterns your rules don't know yet.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Real-Time SIEM Integration</div>
+      <div class="feature-desc">Push events to Splunk, Datadog, Elastic, or any SIEM via webhooks. Full playbook automation through PagerDuty, Jira, and Slack integrations.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div style="text-align:center;">
+    <div class="section-label" style="justify-content:center;">
+      <span style="width:40px;height:1px;background:var(--accent);display:inline-block;"></span>
+      Transparent Pricing
+    </div>
+    <div class="section-title">No Hidden Fees.<br>No Surprises.</div>
+    <p class="section-sub" style="margin:0 auto;">Annual billing. Cancel any time. All plans include SOC 2 Type II reports on request.</p>
+  </div>
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="price-plan">Starter</div>
+      <div class="price-amount"><sup>$</sup>49</div>
+      <div class="price-per">per seat / month</div>
+      <ul class="price-features">
+        <li>Up to 25 seats</li>
+        <li>Chrome extension deployment</li>
+        <li>10 compliance policies</li>
+        <li>7-day log retention</li>
+        <li>Email support</li>
+      </ul>
+      <button class="btn-plan btn-plan-ghost" onclick="openModal()">Get started</button>
+    </div>
+    <div class="price-card featured">
+      <div class="featured-tag">Most Popular</div>
+      <div class="price-plan">Growth</div>
+      <div class="price-amount"><sup>$</sup>129</div>
+      <div class="price-per">per seat / month</div>
+      <ul class="price-features">
+        <li>Up to 250 seats</li>
+        <li>Extension + SDK deployment</li>
+        <li>Unlimited policies</li>
+        <li>90-day log retention</li>
+        <li>SIEM integrations</li>
+        <li>Slack / PagerDuty alerts</li>
+        <li>Priority support (4hr SLA)</li>
+      </ul>
+      <button class="btn-plan btn-plan-solid" onclick="openModal()">Start free trial</button>
+    </div>
+    <div class="price-card">
+      <div class="price-plan">Enterprise</div>
+      <div class="price-amount" style="font-size:36px;letter-spacing:-1px;">Custom</div>
+      <div class="price-per">volume pricing</div>
+      <ul class="price-features">
+        <li>Unlimited seats</li>
+        <li>On-premise deployment</li>
+        <li>Custom AI model fine-tuning</li>
+        <li>365-day retention</li>
+        <li>Dedicated CSM</li>
+        <li>SLA up to 99.99% uptime</li>
+        <li>BAA / DPA agreements</li>
+      </ul>
+      <button class="btn-plan btn-plan-ghost" onclick="openModal()">Contact sales</button>
+    </div>
+  </div>
+</section>
+
+<!-- WHITEPAPER -->
+<section class="whitepaper-section" id="whitepaper">
+  <div class="whitepaper-card">
+    <div>
+      <div class="wp-tag">Free Research</div>
+      <div class="wp-title">The Future of<br>Edge AI in<br>Cybersecurity</div>
+      <div class="wp-desc">62 pages. Covers on-device inference architecture, browser security models, LLM-powered threat classification, and compliance frameworks through 2027. Written by ex-Google and ex-NSA researchers.</div>
+      <div class="wp-form">
+        <input type="email" class="wp-input" id="wpEmail" placeholder="Enter your work email">
+        <button class="btn-primary" style="padding:12px 20px;font-size:13px;" onclick="downloadWP()">Download PDF →</button>
+      </div>
+      <div id="wpSuccess" style="display:none;margin-top:16px;font-size:12px;color:var(--accent);">✓ Check your inbox — the PDF is on its way!</div>
+    </div>
+    <div class="wp-book">
+      <div class="wp-book-content">
+        <div>
+          <div class="wp-book-logo">SafeRail.ai</div>
+          <div class="wp-book-bar" style="margin-top:8px;"></div>
+        </div>
+        <div>
+          <div class="wp-book-title">The Future of Edge AI in Cybersecurity</div>
+          <div class="wp-book-sub" style="margin-top:8px;">2025 Research Report</div>
+        </div>
+        <div class="wp-book-sub">62 pages · PDF · Free</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Safe<span>Rail</span>.ai</div>
+  <ul class="footer-links">
+    <li><a href="#">Privacy Policy</a></li>
+    <li><a href="#">Terms of Service</a></li>
+    <li><a href="#">Security</a></li>
+    <li><a href="#">Status</a></li>
+    <li><a href="#">Docs</a></li>
+    <li><a href="#">Blog</a></li>
+  </ul>
+  <div class="footer-right">© 2025 SafeRail Technologies, Inc.</div>
+</footer>
+
+<script>
+// CURSOR
+const cursor = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.transform = `translate(${mx - 6}px, ${my - 6}px)`;
+});
+
+function animateRing() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  cursorRing.style.transform = `translate(${rx - 18}px, ${ry - 18}px)`;
+  requestAnimationFrame(animateRing);
+}
+animateRing();
+
+document.querySelectorAll('button, a, input').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.transform += ' scale(1.5)';
+    cursorRing.style.width = '48px';
+    cursorRing.style.height = '48px';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursorRing.style.width = '36px';
+    cursorRing.style.height = '36px';
+  });
+});
+
+// MODAL
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('open');
+}
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+});
+
+// Added in formspree.io ID
+document.getElementById('formSubmit').addEventListener('click', async () => {
+  const email = document.querySelector('.form-input').value;
+  await fetch('https://formspree.io/f/mlgaryad', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  document.getElementById('modalForm').style.display = 'none';
+  document.getElementById('successMsg').style.display = 'block';
+});
+
+// STAT COUNTER ANIMATION
+const statNums = document.querySelectorAll('[data-target]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const el = entry.target;
+    const target = parseFloat(el.dataset.target);
+    const suffix = el.dataset.suffix || '';
+    const duration = 2000;
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const val = target * ease;
+      if (target === 0.8) {
+        el.textContent = val.toFixed(1) + suffix;
+      } else if (target === 99.97) {
+        el.textContent = val.toFixed(2) + suffix;
+      } else if (target === 2400) {
+        el.textContent = Math.round(val) + suffix;
+      } else {
+        el.textContent = Math.round(val) + suffix;
+      }
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    observer.unobserve(el);
+  });
+}, { threshold: 0.5 });
+statNums.forEach(el => observer.observe(el));
+
+// LIVE LOG FEED
+const logMessages = [
+  { type: 'ok', msg: 'PASS — user@corp.com · 142 bytes · no PII detected' },
+  { type: 'ok', msg: 'PASS — API call to payments.stripe.com · encrypted' },
+  { type: 'warn', msg: 'WARN — email body contains partial SSN fragment' },
+  { type: 'ok', msg: 'PASS — file upload: Q3_report.pdf · metadata clean' },
+  { type: 'danger', msg: 'BLOCK — 847 credit card numbers detected in POST /api/export' },
+  { type: 'ok', msg: 'PASS — OAuth token exchange · scope validated' },
+  { type: 'warn', msg: 'WARN — clipboard paste contains possible API key pattern' },
+  { type: 'danger', msg: 'BLOCK — AWS secret key exfiltration attempt intercepted' },
+  { type: 'ok', msg: 'PASS — Slack message · no sensitive patterns found' },
+  { type: 'danger', msg: 'BLOCK — 2,341 rows PII in CSV upload to untrusted domain' },
+  { type: 'ok', msg: 'PASS — GitHub commit · secrets scan clear' },
+  { type: 'warn', msg: 'WARN — HTTP (non-TLS) connection to external endpoint' },
+  { type: 'ok', msg: 'PASS — form submit to CRM · field validation passed' },
+  { type: 'danger', msg: 'BLOCK — IBAN numbers in JSON payload to unregistered host' },
+  { type: 'ok', msg: 'PASS — analytics ping · no user data embedded' },
+];
+
+let logIdx = 0;
+let packets = 182847;
+let blocked = 3241;
+
+function addLog() {
+  const feed = document.getElementById('logFeed');
+  const msg = logMessages[logIdx % logMessages.length];
+  logIdx++;
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const line = document.createElement('div');
+  line.className = `log-line log-${msg.type}`;
+  line.innerHTML = `<span class="log-time">${time}</span><span class="log-type">${msg.type.toUpperCase()}</span><span class="log-msg">${msg.msg}</span>`;
+  feed.insertBefore(line, feed.firstChild);
+  if (feed.children.length > 12) feed.removeChild(feed.lastChild);
+  packets += Math.floor(Math.random() * 80 + 20);
+  if (msg.type === 'danger') blocked++;
+  document.getElementById('packetCount').textContent = packets.toLocaleString();
+  document.getElementById('blockedCount').textContent = blocked.toLocaleString();
+}
+
+setInterval(addLog, 1200);
+addLog();
+
+// THREAT GRID
+const grid = document.getElementById('threatGrid');
+const cells = [];
+for (let i = 0; i < 200; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'threat-cell';
+  grid.appendChild(cell);
+  cells.push(cell);
+}
+
+let threatActive = 3;
+function updateGrid() {
+  cells.forEach(c => { c.className = 'threat-cell'; });
+  const numHot = Math.floor(Math.random() * 4) + 2;
+  const numWarm = Math.floor(Math.random() * 15) + 8;
+  const numCool = Math.floor(Math.random() * 30) + 20;
+  for (let i = 0; i < numHot; i++) {
+    cells[Math.floor(Math.random() * cells.length)].classList.add('hot');
+  }
+  for (let i = 0; i < numWarm; i++) {
+    cells[Math.floor(Math.random() * cells.length)].classList.add('warm');
+  }
+  for (let i = 0; i < numCool; i++) {
+    cells[Math.floor(Math.random() * cells.length)].classList.add('cool');
+  }
+  threatActive = numHot;
+  document.getElementById('threatCount').textContent = threatActive;
+  document.getElementById('alertBadge').textContent = `⚠ ${threatActive} ACTIVE`;
+}
+setInterval(updateGrid, 2000);
+updateGrid();
+
+// CALCULATOR
+const industries = ['Healthcare (1.8×)', 'Retail (1.4×)', 'Tech (1.6×)', 'Finance (2.1×)', 'Gov / Defense (2.5×)'];
+const industryMultipliers = [1.8, 1.4, 1.6, 2.1, 2.5];
+const maturityLabels = ['Low', 'Medium', 'High'];
+const maturityMultipliers = [1.4, 1.0, 0.65];
+
+function updateCalc() {
+  const emp = parseInt(document.getElementById('empRange').value);
+  const rec = parseInt(document.getElementById('recRange').value);
+  const ind = parseInt(document.getElementById('indRange').value) - 1;
+  const mat = parseInt(document.getElementById('matRange').value) - 1;
+
+  document.getElementById('empVal').textContent = emp.toLocaleString();
+  document.getElementById('recVal').textContent = rec.toLocaleString();
+  document.getElementById('indVal').textContent = industries[ind];
+  document.getElementById('matVal').textContent = maturityLabels[mat];
+
+  const baseCost = 4.88; // million avg per IBM 2024
+  const recFactor = (rec / 50000) * 0.4 + 0.6;
+  const empFactor = (emp / 500) * 0.3 + 0.7;
+  const totalRisk = baseCost * industryMultipliers[ind] * maturityMultipliers[mat] * recFactor * empFactor;
+  const formatted = totalRisk >= 1 ? `$${totalRisk.toFixed(1)}M` : `$${(totalRisk * 1000).toFixed(0)}K`;
+  const saving = totalRisk * 0.73;
+  const savFmt = saving >= 1 ? `$${saving.toFixed(1)}M` : `$${(saving * 1000).toFixed(0)}K`;
+  document.getElementById('calcResult').textContent = formatted;
+  document.getElementById('calcSaving').textContent = savFmt;
+}
+
+['empRange','recRange','indRange','matRange'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateCalc);
+});
+updateCalc();
+
+// WHITEPAPER
+function downloadWP() {
+  const email = document.getElementById('wpEmail').value;
+  if (!email.includes('@')) { document.getElementById('wpEmail').focus(); return; }
+  document.getElementById('wpSuccess').style.display = 'block';
+}
+
+// SCROLL REVEAL
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+      revealObs.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.feature-card, .price-card, .demo-panel').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(24px)';
+  el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  revealObs.observe(el);
+});
+</script>
+</body>
+</html>
